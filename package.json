@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev:frontend": "pm2 start vite --name cyberspaceVite",
+    "dev:frontend": "pm2 start vite",
     "dev:backend": "NODE_ENV=development pm2 start server.js --name cyberspace",
     "dev": "concurrently 'pm2 delete cyberspaceVite' 'npm:dev:frontend' 'pm2 delete cyberspace' 'npm:dev:backend'",
     "build:frontend": "start 'vite build' --name cyberspaceVite",
     "build:backend": "NODE_ENV=production pm2 start server.js --name cyberspace",
-    "build": "concurrently 'pm2 delete cyberspaceVite' 'npm:build:frontend' 'pm2 delete cyberspace' 'npm:build:backend'",
+    "build": "concurrently 'npm:build:frontend' 'pm2 delete cyberspace' 'npm:build:backend'",
     "preview": "vite preview"
   },
   "devDependencies": {
