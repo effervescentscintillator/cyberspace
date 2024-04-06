@@ -56,12 +56,9 @@ const NUM_OBJECT_LAYERS = 2;
 let jump = false;
 let jumpReleased = true;
 var movingTowardsGround;
-
-var cy = {
-	LAYER_NON_MOVING: LAYER_NON_MOVING,
-	LAYER_MOVING: LAYER_MOVING,
-	NUM_OBJECT_LAYERS: NUM_OBJECT_LAYERS,
-};
+var crouchEnabled = true; //experimental
+var jumpWhileUncrouching = false;
+var hasntLanded = true;
 
 			var input = {
 				forwardPressed: false,
@@ -73,10 +70,7 @@ var cy = {
 				lastMouseMove: performance.now(),
 				MouseMoveX: 0,
 				vector: {x:0,z:0},
-				collision: {x:0,y:0,z:0},
-				init: true,
-				jumpWhileUncrouching: false,
-				crouchEnabled: true,
+				collision: {x:0,y:0,z:0}
 			};
 
 function getRandomQuat() {
@@ -327,7 +321,6 @@ function getThreeObjectForBody(body, color) {
 			break;
 	}
 
-	threeObject.material.transparent = true ;
 	threeObject.position.copy(wrapVec3(body.GetPosition()));
 	threeObject.quaternion.copy(wrapQuat(body.GetRotation()));
 
@@ -446,8 +439,8 @@ function addMarker(location, size, color) {
       		  // called when the resource is loaded
     		  function ( gltf ) {
         	  initExample(Jolt, null);
-
-        	    scene.add( gltf.scene );
+        	  
+        	    scene.add( gltf.scene.children[0] );
 
         	let vertex = gltf.scene.children[0].geometry.attributes.position;
 				  let index = gltf.scene.children[0].geometry.index;
@@ -688,7 +681,7 @@ function addMarker(location, size, color) {
 						movingTowardsGround													// Inertia enabled: And not moving away from ground
 						: !character.IsSlopeTooSteep(character.GetGroundNormal())))			// Inertia disabled: And not on a slope that is too steep
 				{
-					input.init = false;
+					hasntLanded = false;
 					input.midJump = false;
 					// Assume velocity of ground when on ground
 					newVelocity = groundVelocity;
@@ -702,7 +695,7 @@ function addMarker(location, size, color) {
 					newVelocity = groundVelocity;
 					newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
 					input.midJump = true;
-				} else if (smoothCameraY.frames > -2 && jump && movingTowardsGround && jumpReleased && !input.midJump && input.jumpWhileUncrouching){
+				} else if (smoothCameraY.frames > -2 && jump && movingTowardsGround && jumpReleased && !input.midJump && jumpWhileUncrouching){
 					newVelocity = groundVelocity;
 					smoothCameraY.frames = -2;
 					camera.position.set(threeCharacter.position.x,threeCharacter.position.y + 2,threeCharacter.position.z);
@@ -753,7 +746,7 @@ function addMarker(location, size, color) {
 						newGeometry = threeStandingGeometry;
 						input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
 						let crouchBoost = 0;
-						if(movingTowardsGround && !input.init){ crouchBoost = .25;}else{crouchBoost = 0;}
+						if(movingTowardsGround && !hasntLanded){ crouchBoost = .25;}else{crouchBoost = 0;}
 						smoothCameraY.translate = 1;
 						smoothCameraY.remaining = smoothCameraY.translate;
 						smoothCameraY.frames = 144/3.6;
@@ -822,7 +815,7 @@ function addMarker(location, size, color) {
 			threeCharacter.geometry = threeStandingGeometry;
 			threeCharacter.userData.body = character;
 
-			scene.add(threeCharacter);
+			//scene.add(threeCharacter);
 
 			const cameraRotation = new THREE.Quaternion();
 
@@ -841,8 +834,8 @@ function addMarker(location, size, color) {
       	input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
       	//crouch held until grounded until uncrouching midair teleports you through ground glitch is solved
       	if(!input.grounded && input.crouched){input.autoCrouched = true;}else if(input.grounded){input.autoCrouched = input.crouched;}
-      	if(input.init || smoothCameraY.frames > 0){input.autoCrouched = false;}
-      	if(!input.crouchEnabled){input.autoCrouched = false;}
+      	if(hasntLanded || smoothCameraY.frames > 0){input.autoCrouched = false;}
+      	if(!crouchEnabled){input.autoCrouched = false;}
 				setCrouched(input.autoCrouched);
 				if(smoothCameraY.frames > -2 && smoothCameraY.frames < 1){smoothCameraY.frames--;}
 				if( smoothCameraY.frames > 0 ){//&& !input.crouched
@@ -867,14 +860,12 @@ function addMarker(location, size, color) {
 				prePhysicsUpdate(deltaTime)
 
 				input.newdPosition = wrapVec3(character.GetPosition());
-					camera.position.add(input.newdPosition.sub(input.oldPosition));
+				camera.position.add(input.newdPosition.sub(input.oldPosition));
 				input.collision.x = (players[0].translation.x - input.newdPosition.x);
 				input.collision.y = (players[0].translation.y - input.newdPosition.y);
 				input.collision.z = (players[0].translation.z - input.newdPosition.z);
 				input.collision.length = new THREE.Vector2(input.collision.x,input.collision.z).length();
-				cy.createBox = createBox;
 				if(document.fullscreenElement !== null && !pointer.isLocked){pointer.lock();}
-
 			}
 			document.addEventListener("keydown", onDocumentKeyDown, false);
 			document.addEventListener("keyup", onDocumentKeyUp, false);
