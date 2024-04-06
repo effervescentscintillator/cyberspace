@@ -1,0 +1,25 @@
+{
+  "name": "tc-cy",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:frontend": "pm2 start vite --name cyberspaceVite",
+    "dev:backend": "NODE_ENV=development pm2 start server.js --name cyberspace",
+    "dev": "concurrently 'pm2 delete cyberspaceVite' 'npm:dev:frontend' 'pm2 delete cyberspace' 'npm:dev:backend'",
+    "build:frontend": "start 'vite build' --name cyberspaceVite",
+    "build:backend": "NODE_ENV=production pm2 start server.js --name cyberspace",
+    "build": "concurrently 'pm2 delete cyberspaceVite' 'npm:build:frontend' 'pm2 delete cyberspace' 'npm:build:backend'",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^4.2.0"
+  },
+  "dependencies": {
+    "express": "*",
+    "jolt-physics": "^0.13.0",
+    "lil-gui": "^0.19.2",
+    "three": "^0.151.2",
+    "vite-express": "^0.16.0"
+  }
+}
