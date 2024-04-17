@@ -20,6 +20,7 @@
 		import initJolt from 'https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js';
 		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 		import GUI from 'lil-gui';
+		import 'joypad.js'; 
 
 // Graphics variables
 var container, stats;
@@ -53,6 +54,11 @@ const LAYER_NON_MOVING = 0;
 const LAYER_MOVING = 1;
 const NUM_OBJECT_LAYERS = 2;
 
+let analogMoveHorizontal = 0;
+let analogMoveVertical = 0;
+let analogLookHorizontal = 0;
+let analogLookVertical = 0;
+let euler = new THREE.Euler(0, 0, 0, "YXZ");
 let jump = false;
 let jumpReleased = true;
 var movingTowardsGround;
@@ -440,7 +446,7 @@ function addMarker(location, size, color) {
     		  function ( gltf ) {
         	  initExample(Jolt, null);
         	  
-        	    scene.add( gltf.scene.children[0] );
+        	    scene.add( gltf.scene );
 
         	let vertex = gltf.scene.children[0].geometry.attributes.position;
 				  let index = gltf.scene.children[0].geometry.index;
@@ -823,7 +829,26 @@ function addMarker(location, size, color) {
     		players[0] = new Ent(THREE);
 
 			onExampleUpdate = (time, deltaTime) => {
+				if(config.Controller){
+					if(Math.abs(analogMoveVertical) > config.Deadzone){
+						input.vector.z = analogMoveVertical;
+					} else {input.vector.z = 0;}
 
+					if(Math.abs(analogMoveHorizontal) > config.Deadzone){
+					  input.vector.x = analogMoveHorizontal;						
+					} else {input.vector.x = 0;}
+
+					euler.setFromQuaternion(camera.quaternion);
+
+					if (Math.abs(analogLookHorizontal) > config.Deadzone){
+						euler.y -= analogLookHorizontal * 2e-3 * config['Controller Sensitivity'];
+					}
+					if (Math.abs(analogLookVertical) > config.Deadzone){
+  					euler.x -= analogLookVertical * 2e-3 * config['Controller Sensitivity'];
+  					euler.x = Math.max((Math.PI / 2) - (Math.PI - 0.000000000000001), Math.min((Math.PI / 2) - 0.000000000000001, euler.x));
+					}
+  				camera.quaternion.setFromEuler(euler);
+				}
 				if(init){for (let i = 0; i < players.length; i++) {
         		  players[i].turn(input);
       			  input.clickedLeft = false;
@@ -895,6 +920,10 @@ function addMarker(location, size, color) {
 	  Jump: ' ',
 	  Crouch: 'shift',
 	};
+	const defaultControllerBind = {
+	  Jump: 'button_0',
+	  Crouch: 'button_1',
+	};
 	var bind = defaultBind;
 
 	var gui = new GUI();
@@ -904,7 +933,11 @@ function addMarker(location, size, color) {
 	const defaultConfig = {
 		Sensitivity: 2.19,
 		FPS: true,
+		Controller: true,
+		Deadzone: 0.06,
+		'Controller Sensitivity': 10.00,
 		bind: defaultBind,
+		controllerBind: defaultControllerBind,
 		Default: function() {
 	  	  config = JSON.parse(JSON.stringify(defaultConfig));
 	  	  localStorage.setItem('config', JSON.stringify(config));
@@ -915,10 +948,18 @@ function addMarker(location, size, color) {
 			gui.destroy();
 			gui = new GUI();
 			gui.add( config, 'Sensitivity', 0, 10 );
-			gui.add( config, 'FPS' );  
-			const folder = gui.addFolder( 'Bindings' );
+			gui.add( config, 'FPS' );
+			gui.add( config, 'Controller' );
+			gui.add( config, 'Controller Sensitivity', 0, 100 );
+			gui.add( config, 'Deadzone' );
+
+			const bindFolder = gui.addFolder( 'Bindings' );
 			Object.keys(config.bind).forEach(key => {
-		  	  folder.add( config.bind, key);
+		  	  bindFolder.add( config.bind, key);
+			});
+			const controllerBindFolder = gui.addFolder( 'Controller Bindings' );
+			Object.keys(config.controllerBind).forEach(key => {
+		  	  controllerBindFolder.add( config.controllerBind, key);
 			});
 			config.Default = defaultConfig.Default;
 		    gui.add( config, 'Default' ); // Button
@@ -932,31 +973,33 @@ function addMarker(location, size, color) {
     		stats.domElement.style.opacity = '0';
     	}
 
+
 			gui.onChange( event => {
 			  if (event.controller.parent._title == 'Bindings'){
 			  	Object.keys(config.bind).forEach(key => {
 			  	  config.bind[key] = config.bind[key].toLowerCase();
 			  	});
-			  	localStorage.setItem('config', JSON.stringify(config));
-			  	localStorage.setItem('configVersion', configVersion);
 			  } else switch (event.property) {
 		  		case 'Sensitivity':
 		    	  pointer.pointerSpeed = event.value/4;
-		    	  localStorage.setItem('config', JSON.stringify(config));
-			  	  localStorage.setItem('configVersion', configVersion);
 		    	  break;
 		    	case 'FPS':
 		    		if (config.FPS){
 		    			stats.domElement.style.opacity = '.5';
-		    	    localStorage.setItem('config', JSON.stringify(config));
-			  	    localStorage.setItem('configVersion', configVersion);
 		    		} else {
 		    			stats.domElement.style.opacity = '0';
-  		    	  localStorage.setItem('config', JSON.stringify(config));
-			  	    localStorage.setItem('configVersion', configVersion);
 		    		}
 		    		break;
-		      }
+		    	case 'Controller':
+		    		break;
+		    	case 'Controller Sensitivity':
+		    		break;
+		    	case 'Deadzone':
+		    		break;
+		    }
+				localStorage.setItem('config', JSON.stringify(config));
+			  localStorage.setItem('configVersion', configVersion);
+
 			  //event.object     // object that was modified
 			  //event.property   // string, name of property
 			  //event.value      // new value of controller
@@ -973,6 +1016,58 @@ function addMarker(location, size, color) {
     }
 
     initGui();
+
+  joypad.set({
+  	axisMovementThreshold: 0,
+	});
+
+	joypad.on('connect', (e) => {
+  	const { id } = e.gamepad;
+
+  	console.log(`${id} connected!`);
+
+	});
+
+	joypad.on('axis_move', (e) => {
+  	  //console.log(e.detail);
+  		analogMoveHorizontal = e.detail.gamepad.axes[0];
+  		analogMoveVertical = e.detail.gamepad.axes[1];
+  		analogLookHorizontal = e.detail.gamepad.axes[2];
+  		analogLookVertical = e.detail.gamepad.axes[3];
+	});
+
+	joypad.on('button_press', (e) => {
+  	const { buttonName } = e.detail;
+  	switch (e.detail.buttonName){
+  		case config.controllerBind.Jump:
+  			jump = true;
+  			break;
+  		case config.controllerBind.Crouch:
+  			input.crouched = true;
+  			break;
+  	}
+
+  	if(!(document.getSelection().focusNode === null)){
+  		if(document.getSelection().focusNode.parentElement.className == 'controller string'){
+  			document.execCommand("selectAll", false);
+  			document.execCommand("delete", false);
+  			document.execCommand("insertText", false, e.detail.buttonName);
+  		}
+  	}
+
+	});
+
+	joypad.on('button_release', (e) => {
+  	const { buttonName } = e.detail;
+  	switch (e.detail.buttonName){
+  		case config.controllerBind.Jump:
+  			jump = false;
+  			break;
+  		case config.controllerBind.Crouch:
+  			input.crouched = false;
+  			break;
+  	}
+	});
 
 	addEventListener("mousedown", (event) => {
     if(pointer.isLocked){
@@ -1021,7 +1116,7 @@ function addMarker(location, size, color) {
 				}
 			};
 
-			physicsSystem.SetGravity(new Jolt.Vec3(0, -28, 0))
+			physicsSystem.SetGravity(new Jolt.Vec3(0, -28, 0));
 		}
 		});
 
