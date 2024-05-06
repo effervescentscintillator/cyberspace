@@ -69,7 +69,8 @@ var crouchHeight = 2;
 var unCrouchHeight = 0;
 var crouching = false;
 var unCrouching = false;
-
+var midAirFromCrouch = false;
+var hasCrouched = false;
 
 			var input = {
 				forwardPressed: false,
@@ -652,13 +653,23 @@ function addMarker(location, size, color) {
 				{
 					// Assume velocity of ground when on ground
 					newVelocity = groundVelocity;
+					if(input.grounded){midAirFromCrouch = false;}
 					// Jump
 					if (jump && movingTowardsGround && jumpReleased){
 						newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
+						midAirFromCrouch = false;
 					}
 					if (!jump){jumpReleased = true;}
 				} else {
-					newVelocity = currentVerticalVelocity.clone();
+					if(input.crouched){console.log(midAirFromCrouch + ' ' + jump + ' ' + movingTowardsGround);}
+					if (midAirFromCrouch && jump && movingTowardsGround && jumpReleased){
+						console.log('jmp');
+						newVelocity = groundVelocity;
+						newVelocity.add(characterUp.multiplyScalar(jumpSpeed - .5));
+						midAirFromCrouch = false;
+					} else {
+						newVelocity = currentVerticalVelocity.clone();
+					}
 				}
 				// Gravity
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
@@ -679,23 +690,17 @@ function addMarker(location, size, color) {
 				if (crouched != isCrouched || forceUpdate || uncrouchBlock) {
 					let newShape;
 					let newGeometry;
-					if (crouched) {//crouching
-						//camera.position.set(camera.position.x, threeCharacter.position.y + 1 , camera.position.z);
-						//let crouchVec = character.GetPosition();
-					  //_tmpVec3.Set(threeCharacter.position.x, threeCharacter.position.y +.66, threeCharacter.position.z);
-					  //character.SetPosition(_tmpVec3);
+					if (crouched) {
 						newShape = crouchingShape;
 						newGeometry = threeCrouchingGeometry;
 						crouchHeight = 2;
+						unCrouchHeight = 0;
 						crouching = true;
-					} else {//uncrouching
-						//camera.position.set(camera.position.x, threeCharacter.position.y + 2, camera.position.z);
+					} else {
 						newShape = standingShape;
 						newGeometry = threeStandingGeometry;
 						crouchHeight = 1;
 						crouching = false;
-						//_tmpVec3.Set(threeCharacter.position.x, smoothCameraY.position + crouchBoost, threeCharacter.position.z);
-					  //character.SetPosition(_tmpVec3);
 					}
 					if (character.SetShape(newShape,
 						1.5 * physicsSystem.GetPhysicsSettings().mPenetrationSlop,
@@ -709,17 +714,21 @@ function addMarker(location, size, color) {
 						isCrouched = crouched;
 						threeCharacter.geometry = newGeometry;
 						camera.position.set(camera.position.x, threeCharacter.position.y + crouchHeight, camera.position.z);
-						if(crouching){
+						if(crouching && !hasCrouched){
+							if(!midAirFromCrouch){
+								if (input.grounded){midAirFromCrouch = true; input.grounded = false; console.log('bbb');}
 						  _tmpVec3.Set(
 						  	threeCharacter.position.x,
 						   	threeCharacter.position.y + 1,
 						    threeCharacter.position.z
 						  );
 					    character.SetPosition(_tmpVec3);
-					    crouching = false;
-						} else {
-							//unCrouching = true;
+							}
+							crouching = false;
+							hasCrouched = true;
+					   } else {
 							unCrouchHeight = 0.1;
+							hasCrouched = false;
 						}
 					}
 				}
@@ -801,7 +810,9 @@ function addMarker(location, size, color) {
       			}
       			init = true;
       	input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
-      	setCrouched(input.crouched);
+      	if(!(!input.crouched && !input.grounded)){
+      		setCrouched(input.crouched);
+      	}
 
       	if(unCrouchHeight > 0 && unCrouchHeight <= 1){
       		unCrouchHeight += 3.5 * deltaTime;
