@@ -46,8 +46,10 @@ export class Ent {
     this.midAir = false;
     this.lat = new THREE.Vector3(0,0,0);
     this.lastLat = new THREE.Vector3(0,0,0);
+    this.projectiles = [];
 
     this.knockBack = function(x) {
+      console.log('aaa');
     }
     
     this.turn = function(input){

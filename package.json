@@ -13,14 +13,15 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "vite": "^4.2.0"
+    "vite": "*"
   },
   "dependencies": {
     "express": "*",
+    "joypad.js": "^2.3.5",
     "jolt-physics": "^0.13.0",
     "lil-gui": "^0.19.2",
     "three": "^0.151.2",
-    "vite-express": "^0.16.0",
-    "vite": "*"
+    "vite": "*",
+    "vite-express": "^0.16.0"
   }
 }
