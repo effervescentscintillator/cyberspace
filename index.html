@@ -12,6 +12,7 @@
 	<div id="container"><div style="position:fixed; bottom:1px; background-color: lime; width: 0%; height: 1px;" id="loadingBar"></div></div>
 	<script type="module">
 		import { Ent } from '/ent.js';
+		import { turn } from '/game.js';
 		import * as THREE from 'three';
 		import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 		import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
@@ -62,9 +63,13 @@ let euler = new THREE.Euler(0, 0, 0, "YXZ");
 let jump = false;
 let jumpReleased = true;
 var movingTowardsGround;
-var crouchEnabled = true; //experimental
-var jumpWhileUncrouching = false;
-var hasntLanded = true;
+
+var crouchEnabled = true;
+var crouchHeight = 2;
+var unCrouchHeight = 0;
+var crouching = false;
+var unCrouching = false;
+
 
 			var input = {
 				forwardPressed: false,
@@ -333,48 +338,6 @@ function getThreeObjectForBody(body, color) {
 	return threeObject;
 }
 
-function createMeshFloor(n, cellSize, maxHeight, posX, posY, posZ) {
-	// Create regular grid of triangles
-	let height = function (x, y) { return Math.sin(x / 2) * Math.cos(y / 3); };
-	let triangles = new Jolt.TriangleList;
-	triangles.resize(n * n * 2);
-	for (let x = 0; x < n; ++x)
-		for (let z = 0; z < n; ++z) {
-			let center = n * cellSize / 2;
-
-			let x1 = cellSize * x - center;
-			let z1 = cellSize * z - center;
-			let x2 = x1 + cellSize;
-			let z2 = z1 + cellSize;
-
-			{
-				let t = triangles.at((x * n + z) * 2);
-				let v1 = t.get_mV(0), v2 = t.get_mV(1), v3 = t.get_mV(2);
-				v1.x = x1, v1.y = height(x, z), v1.z = z1;
-				v2.x = x1, v2.y = height(x, z + 1), v2.z = z2;
-				v3.x = x2, v3.y = height(x + 1, z + 1), v3.z = z2;
-			}
-
-			{
-				let t = triangles.at((x * n + z) * 2 + 1);
-				let v1 = t.get_mV(0), v2 = t.get_mV(1), v3 = t.get_mV(2);
-				v1.x = x1, v1.y = height(x, z), v1.z = z1;
-				v2.x = x2, v2.y = height(x + 1, z + 1), v2.z = z2;
-				v3.x = x2, v3.y = height(x + 1, z), v3.z = z1;
-			}
-		}
-	let materials = new Jolt.PhysicsMaterialList;
-	let shape = new Jolt.MeshShapeSettings(triangles, materials).Create().Get();
-	Jolt.destroy(triangles);
-	Jolt.destroy(materials);
-
-	// Create body
-	let creationSettings = new Jolt.BodyCreationSettings(shape, new Jolt.Vec3(posX, posY, posZ), new Jolt.Quat(0, 0, 0, 1), Jolt.EMotionType_Static, LAYER_NON_MOVING);
-	let body = bodyInterface.CreateBody(creationSettings);
-	Jolt.destroy(creationSettings);
-	addToScene(body, 0xc7c7c7);
-}
-
 function createVehicleTrack() {
 	const track = [
 		[[[38, 64, -14], [38, 64, -16], [38, -64, -16], [38, -64, -14], [64, -64, -16], [64, -64, -14], [64, 64, -16], [64, 64, -14]], [[-16, 64, -14], [-16, 64, -16], [-16, -64, -16], [-16, -64, -14], [10, -64, -16], [10, -64, -14], [10, 64, -16], [10, 64, -14]], [[10, -48, -14], [10, -48, -16], [10, -64, -16], [10, -64, -14], [38, -64, -16], [38, -64, -14], [38, -48, -16], [38, -48, -14]], [[10, 64, -14], [10, 64, -16], [10, 48, -16], [10, 48, -14], [38, 48, -16], [38, 48, -14], [38, 64, -16], [38, 64, -14]]],
@@ -569,11 +532,11 @@ function addMarker(location, size, color) {
 						break;
 
 					case 'Box':
-						standingShape = new Jolt.RotatedTranslatedShapeSettings(positionStanding, rotation, new Jolt.BoxShapeSettings(new Jolt.Vec3(characterRadiusStanding, characterHeightStanding, characterRadiusStanding))).Create().Get();
-						crouchingShape = new Jolt.RotatedTranslatedShapeSettings(positionCrouching, rotation, new Jolt.BoxShapeSettings(new Jolt.Vec3(characterRadiusCrouching, characterHeightCrouching, characterRadiusCrouching))).Create().Get();
+						standingShape = new Jolt.RotatedTranslatedShapeSettings(positionStanding, rotation, new Jolt.BoxShapeSettings(new Jolt.Vec3(characterRadiusStanding, 0.5 * characterHeightStanding + characterRadiusStanding, characterRadiusStanding))).Create().Get();
+						crouchingShape = new Jolt.RotatedTranslatedShapeSettings(positionCrouching, rotation, new Jolt.BoxShapeSettings(new Jolt.Vec3(characterRadiusCrouching, 0.5 * characterHeightCrouching + characterRadiusCrouching, characterRadiusCrouching))).Create().Get();
 
-						threeStandingGeometry = new THREE.BoxGeometry(2 * characterRadiusStanding, 2 * characterHeightStanding, 2 * characterRadiusStanding).translate(0, 0.5 * characterHeightStanding + characterRadiusStanding, 0);
-						threeCrouchingGeometry = new THREE.BoxGeometry(2 * characterRadiusCrouching, 2 * characterHeightCrouching, 2 * characterRadiusCrouching).translate(0, 1.68 * characterHeightCrouching, 0);
+						threeStandingGeometry = new THREE.BoxGeometry(2 * characterRadiusStanding, 2 * characterRadiusStanding + characterHeightStanding, 2 * characterRadiusStanding).translate(0, 0.5 * characterHeightStanding + characterRadiusStanding, 0);
+						threeCrouchingGeometry = new THREE.BoxGeometry(2 * characterRadiusCrouching, 2 * characterRadiusCrouching + characterHeightCrouching, 2 * characterRadiusCrouching).translate(0, 0.5 * characterHeightCrouching + characterRadiusCrouching, 0);
 						break;
 				}
 			}
@@ -687,38 +650,15 @@ function addMarker(location, size, color) {
 						movingTowardsGround													// Inertia enabled: And not moving away from ground
 						: !character.IsSlopeTooSteep(character.GetGroundNormal())))			// Inertia disabled: And not on a slope that is too steep
 				{
-					hasntLanded = false;
-					input.midJump = false;
 					// Assume velocity of ground when on ground
 					newVelocity = groundVelocity;
 					// Jump
-					if (jump && movingTowardsGround && jumpReleased && !input.midJump){
+					if (jump && movingTowardsGround && jumpReleased){
 						newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
-						input.midJump = true;
 					}
 					if (!jump){jumpReleased = true;}
-				} else if(input.autoCrouched && jump && movingTowardsGround && jumpReleased && !input.midJump){
-					newVelocity = groundVelocity;
-					newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
-					input.midJump = true;
-				} else if (smoothCameraY.frames > -2 && jump && movingTowardsGround && jumpReleased && !input.midJump && jumpWhileUncrouching){
-					newVelocity = groundVelocity;
-					smoothCameraY.frames = -2;
-					camera.position.set(threeCharacter.position.x,threeCharacter.position.y + 2,threeCharacter.position.z);
-					newVelocity.add(characterUp.multiplyScalar(jumpSpeed - (smoothCameraY.percent * 8.5)));
-					input.midJump = true;
 				} else {
 					newVelocity = currentVerticalVelocity.clone();
-					var uncrouching =  smoothCameraY.frames > -2;
-					if (jump && !uncrouching ){jumpReleased = false;
-					} else {
-						if(jump && smoothCameraY.frames == -1 && jumpReleased && !input.autoCrouched){
-							newVelocity = groundVelocity;
-							newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
-							input.midJump = true;
-						}
-
-					}
 				}
 				// Gravity
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
@@ -740,31 +680,22 @@ function addMarker(location, size, color) {
 					let newShape;
 					let newGeometry;
 					if (crouched) {//crouching
-						camera.position.set(camera.position.x, threeCharacter.position.y +2, camera.position.z);
-						let crouchVec = character.GetPosition();
-					  _tmpVec3.Set(threeCharacter.position.x, threeCharacter.position.y +.66, threeCharacter.position.z);
-					  character.SetPosition(_tmpVec3);
+						//camera.position.set(camera.position.x, threeCharacter.position.y + 1 , camera.position.z);
+						//let crouchVec = character.GetPosition();
+					  //_tmpVec3.Set(threeCharacter.position.x, threeCharacter.position.y +.66, threeCharacter.position.z);
+					  //character.SetPosition(_tmpVec3);
 						newShape = crouchingShape;
 						newGeometry = threeCrouchingGeometry;
-						uncrouchBlock = false;
-					} else if (!uncrouchBlock) {//uncrouching
+						crouchHeight = 2;
+						crouching = true;
+					} else {//uncrouching
+						//camera.position.set(camera.position.x, threeCharacter.position.y + 2, camera.position.z);
 						newShape = standingShape;
 						newGeometry = threeStandingGeometry;
-						input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
-						let crouchBoost = 0;
-						if(movingTowardsGround && !hasntLanded){ crouchBoost = .25;}else{crouchBoost = 0;}
-						smoothCameraY.translate = 1;
-						smoothCameraY.remaining = smoothCameraY.translate;
-						smoothCameraY.frames = 144/3.6;
-						smoothCameraY.total = smoothCameraY.frames;
-						smoothCameraY.initial = 0;
-						smoothCameraY.inc = 1;
-						smoothCameraY.fraction = smoothCameraY.translate/smoothCameraY.frames;
-						smoothCameraY.position = threeCharacter.position.y +1 + crouchBoost;
-						smoothCameraY.percent = 0;
-						
-						_tmpVec3.Set(threeCharacter.position.x, smoothCameraY.position + crouchBoost, threeCharacter.position.z);
-					  character.SetPosition(_tmpVec3);
+						crouchHeight = 1;
+						crouching = false;
+						//_tmpVec3.Set(threeCharacter.position.x, smoothCameraY.position + crouchBoost, threeCharacter.position.z);
+					  //character.SetPosition(_tmpVec3);
 					}
 					if (character.SetShape(newShape,
 						1.5 * physicsSystem.GetPhysicsSettings().mPenetrationSlop,
@@ -777,8 +708,20 @@ function addMarker(location, size, color) {
 						// Accept the new shape only when the SetShape call was successful
 						isCrouched = crouched;
 						threeCharacter.geometry = newGeometry;
-						uncrouchBlock = false;
-					} else {uncrouchBlock = true;}
+						camera.position.set(camera.position.x, threeCharacter.position.y + crouchHeight, camera.position.z);
+						if(crouching){
+						  _tmpVec3.Set(
+						  	threeCharacter.position.x,
+						   	threeCharacter.position.y + 1,
+						    threeCharacter.position.z
+						  );
+					    character.SetPosition(_tmpVec3);
+					    crouching = false;
+						} else {
+							//unCrouching = true;
+							unCrouchHeight = 0.1;
+						}
+					}
 				}
 			}
 
@@ -851,25 +794,20 @@ function addMarker(location, size, color) {
 				}
 				if(init){for (let i = 0; i < players.length; i++) {
         		  players[i].turn(input);
+        		  turn(THREE, scene, dynamicObjects, camera, jolt, input, players, init, bodyInterface, i, deltaTime);
       			  input.clickedLeft = false;
       			  input.clickedRight = false;
       				}
       			}
       			init = true;
       	input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
-      	//crouch held until grounded until uncrouching midair teleports you through ground glitch is solved
-      	if(!input.grounded && input.crouched){input.autoCrouched = true;}else if(input.grounded){input.autoCrouched = input.crouched;}
-      	if(hasntLanded || smoothCameraY.frames > 0){input.autoCrouched = false;}
-      	if(!crouchEnabled){input.autoCrouched = false;}
-				setCrouched(input.autoCrouched);
-				if(smoothCameraY.frames > -2 && smoothCameraY.frames < 1){smoothCameraY.frames--;}
-				if( smoothCameraY.frames > 0 ){//&& !input.crouched
-					camera.position.set(camera.position.x, (smoothCameraY.position) + (smoothCameraY.fraction * smoothCameraY.inc), camera.position.z);
-					smoothCameraY.frames--;
-					smoothCameraY.inc++;
-					smoothCameraY.remaining = smoothCameraY.remaining - smoothCameraY.fraction;
-					smoothCameraY.percent = smoothCameraY.frames / smoothCameraY.total;
-				} else if (!input.autoCrouched){camera.position.set(threeCharacter.position.x,threeCharacter.position.y + 2,threeCharacter.position.z);}
+      	setCrouched(input.crouched);
+
+      	if(unCrouchHeight > 0 && unCrouchHeight <= 1){
+      		unCrouchHeight += 3.5 * deltaTime;
+      		camera.position.set(camera.position.x, threeCharacter.position.y + 1 +unCrouchHeight, camera.position.z);
+      	}
+
 				camera.getWorldQuaternion(cameraRotation);
 				const cameraDirectionV = new THREE.Vector3(input.vector.x, 0, input.vector.z).applyQuaternion(cameraRotation);
 				cameraDirectionV.y = 0;
@@ -1017,57 +955,58 @@ function addMarker(location, size, color) {
 
     initGui();
 
-  joypad.set({
-  	axisMovementThreshold: 0,
-	});
+  if(Object.hasOwn(joypad, 'set')){
+	  joypad.set({
+	  	axisMovementThreshold: 0,
+		});
 
-	joypad.on('connect', (e) => {
-  	const { id } = e.gamepad;
+		joypad.on('connect', (e) => {
+	  	const { id } = e.gamepad;
 
-  	console.log(`${id} connected!`);
+	  	console.log(`${id} connected!`);
 
-	});
+		});
 
-	joypad.on('axis_move', (e) => {
-  	  //console.log(e.detail);
-  		analogMoveHorizontal = e.detail.gamepad.axes[0];
-  		analogMoveVertical = e.detail.gamepad.axes[1];
-  		analogLookHorizontal = e.detail.gamepad.axes[2];
-  		analogLookVertical = e.detail.gamepad.axes[3];
-	});
+		joypad.on('axis_move', (e) => {
+	  	  //console.log(e.detail);
+	  		analogMoveHorizontal = e.detail.gamepad.axes[0];
+	  		analogMoveVertical = e.detail.gamepad.axes[1];
+	  		analogLookHorizontal = e.detail.gamepad.axes[2];
+	  		analogLookVertical = e.detail.gamepad.axes[3];
+		});
 
-	joypad.on('button_press', (e) => {
-  	const { buttonName } = e.detail;
-  	switch (e.detail.buttonName){
-  		case config.controllerBind.Jump:
-  			jump = true;
-  			break;
-  		case config.controllerBind.Crouch:
-  			input.crouched = true;
-  			break;
-  	}
+		joypad.on('button_press', (e) => {
+	  	const { buttonName } = e.detail;
+	  	switch (e.detail.buttonName){
+	  		case config.controllerBind.Jump:
+	  			jump = true;
+	  			break;
+	  		case config.controllerBind.Crouch:
+	  			input.crouched = true;
+	  			break;
+	  	}
 
-  	if(!(document.getSelection().focusNode === null)){
-  		if(document.getSelection().focusNode.parentElement.className == 'controller string'){
-  			document.execCommand("selectAll", false);
-  			document.execCommand("delete", false);
-  			document.execCommand("insertText", false, e.detail.buttonName);
-  		}
-  	}
+	  	if(!(document.getSelection().focusNode === null)){
+	  		if(document.getSelection().focusNode.parentElement.className == 'controller string'){
+	  			document.execCommand("selectAll", false);
+	  			document.execCommand("delete", false);
+	  			document.execCommand("insertText", false, e.detail.buttonName);
+	  		}
+	  	}
+		});
 
-	});
-
-	joypad.on('button_release', (e) => {
-  	const { buttonName } = e.detail;
-  	switch (e.detail.buttonName){
-  		case config.controllerBind.Jump:
-  			jump = false;
-  			break;
-  		case config.controllerBind.Crouch:
-  			input.crouched = false;
-  			break;
-  	}
-	});
+		joypad.on('button_release', (e) => {
+	  	const { buttonName } = e.detail;
+	  	switch (e.detail.buttonName){
+	  		case config.controllerBind.Jump:
+	  			jump = false;
+	  			break;
+	  		case config.controllerBind.Crouch:
+	  			input.crouched = false;
+	  			break;
+	  	}
+		});
+  }
 
 	addEventListener("mousedown", (event) => {
     if(pointer.isLocked){
