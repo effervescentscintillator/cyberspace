@@ -1,6 +1,44 @@
-export function turn(THREE, scene, dynamicObjects, camera, jolt, input, players, init, bodyInterface, i, deltaTime){
-  if(!init){
-    
+export function turn(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, i, deltaTime){
+  if(input.init){
+    console.log('game init');
+    /*
+    const contactListener = new Jolt.ContactListenerJS();
+
+    contactListener.OnContactValidate = (body1, body2, baseOffset, collideShapeResult) => {
+          console.log('aaab');
+          body1 = Jolt.wrapPointer(body1, Jolt.Body);
+          body2 = Jolt.wrapPointer(body2, Jolt.Body);
+          collideShapeResult = Jolt.wrapPointer(collideShapeResult, Jolt.CollideShapeResult);
+          return Jolt.ValidateResult_AcceptAllContactsForThisBodyPair;
+    };
+    contactListener.OnContactAdded = (body1, body2, manifold, settings) => {
+                console.log('aaa2c');
+
+          body1 = Jolt.wrapPointer(body1, Jolt.Body);
+          body2 = Jolt.wrapPointer(body2, Jolt.Body);
+          manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
+          settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
+          console.log(body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString());
+
+          // Override the restitution to 0.5
+          settings.mCombinedRestitution = 0.5;
+    };
+    contactListener.OnContactPersisted = (body1, body2, manifold, settings) => {
+          body1 = Jolt.wrapPointer(body1, Jolt.Body);
+          body2 = Jolt.wrapPointer(body2, Jolt.Body);
+          manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
+          settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
+          //collisionLog.value += 'OnContactPersisted ' + body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString() + '\n';
+
+          // Override the restitution to 0.5
+          settings.mCombinedRestitution = 0.5;
+        };
+    contactListener.OnContactRemoved = (subShapePair) => {
+          subShapePair = Jolt.wrapPointer(subShapePair, Jolt.SubShapeIDPair);
+          //collisionLog.value += 'OnContactRemoved ' + subShapePair.GetBody1ID().GetIndex() + ' ' + subShapePair.GetBody2ID().GetIndex() + '\n';
+    };
+    physicsSystem.SetContactListener(contactListener);*/
+
   }
 
   if(input.clickedLeft){
@@ -14,21 +52,21 @@ export function turn(THREE, scene, dynamicObjects, camera, jolt, input, players,
     }
 
     console.log('left');
-    players[i].knockBack();
 
-    let shape = new Jolt.BoxShape(new Jolt.Vec3(1, 1, 1), 0.05, null);
+    let shape = new Jolt.BoxShape(new Jolt.Vec3(.25, .25, .25), 0.05, null);
 
     let creationSettings = new Jolt.BodyCreationSettings(
       shape,
       new Jolt.Vec3(camera.position.x, camera.position.y, camera.position.z),
       Jolt.Quat.prototype.sIdentity(), 
       Jolt.EMotionType_Kinematic, 
-      0
+      1
     );
     let body = bodyInterface.CreateBody(creationSettings);
     Jolt.destroy(creationSettings);
 
     body.SetIsSensor(true);
+    body.SetCollideKinematicVsNonDynamic(true);
     bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
 
     players[i].projectiles[0] = {};
@@ -42,7 +80,7 @@ export function turn(THREE, scene, dynamicObjects, camera, jolt, input, players,
     players[i].projectiles[0].active = true;
 
     players[i].material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-    players[i].geometrytest = new THREE.BoxGeometry( .5, .5, .5 );
+    players[i].geometrytest = new THREE.BoxGeometry( .125, .125, .125 );
     players[i].cubec = new THREE.Mesh( players[i].geometrytest, players[i].material );
 
     scene.add(players[i].cubec);
@@ -99,18 +137,40 @@ export function turn(THREE, scene, dynamicObjects, camera, jolt, input, players,
         players[i].proj = true;
 
 */
-
 }
   if(input.clickedRight){
     console.log('right');
 }
 
 if(players[i].projectiles.length > 0){
+  for (var n = 0; n < input.contacts.length; n++) {
+    if(input.contacts[n].body2.GetID().GetIndex() == players[i].projectiles[0].bodyID.GetIndex()){
+      console.log('yay!');
+      players[i].knockBack(
+        players[i].projectiles[0].threeObject.position.x,
+        players[i].projectiles[0].threeObject.position.y,
+        players[i].projectiles[0].threeObject.position.z,
+        2,
+        input
+      );
+
+      players[i].projectiles[0].det = true;
+
+    }
+  }
   //threeObject.translateX(5);
   //[i].projectiles[0].threeObject.updateMatrix();
   //players[i].cubec.position.z += .01;
   //players[i].cubec.translateZ(-.01 * 100 * deltaTime);
-  players[i].projectiles[0].threeObject.translateZ(-.01 * 100 * deltaTime);
+  if(players[i].projectiles[0].det){
+      let id = players[i].projectiles[0].threeObject.userData.body.GetID();
+      bodyInterface.RemoveBody(id);
+      bodyInterface.DestroyBody(id);
+      delete players[i].projectiles[0].threeObject.userData.body;
+      scene.remove(players[i].projectiles[0].threeObject);
+      players[i].projectiles = [];
+  } else {
+  players[i].projectiles[0].threeObject.translateZ(-.25 * 100 * deltaTime);
 
   let joltPosition = new Jolt.RVec3(
     players[i].projectiles[0].threeObject.position.x,
@@ -124,6 +184,7 @@ if(players[i].projectiles.length > 0){
     Jolt.EActivation_DontActivate
   );
   players[i].projectiles[0].position = bodyInterface.GetPosition(players[i].projectiles[0].bodyID);
+  }
 }
 
 /*

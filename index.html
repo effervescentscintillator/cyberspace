@@ -82,7 +82,10 @@ var hasCrouched = false;
 				lastMouseMove: performance.now(),
 				MouseMoveX: 0,
 				vector: {x:0,z:0},
-				collision: {x:0,y:0,z:0}
+				collision: {x:0,y:0,z:0},
+				init: true,
+				contacts: [],
+				knockBackDir: new THREE.Vector3(0,0,0)
 			};
 
 function getRandomQuat() {
@@ -549,6 +552,47 @@ function addMarker(location, size, color) {
 			const conveyorBeltObject = createBox(new Jolt.Vec3(0, 0, -10), Jolt.Quat.prototype.sIdentity(), new Jolt.Vec3(10, 0.25, 2), Jolt.EMotionType_Static, LAYER_NON_MOVING, 0x2222cc);
 			const conveyorBeltObjectId = conveyorBeltObject.GetID().GetIndexAndSequenceNumber();
 
+			    const contactListener = new Jolt.ContactListenerJS();
+    contactListener.OnContactValidate = (body1, body2, baseOffset, collideShapeResult) => {
+          console.log('aaab3');
+          body1 = Jolt.wrapPointer(body1, Jolt.Body);
+          body2 = Jolt.wrapPointer(body2, Jolt.Body);
+          collideShapeResult = Jolt.wrapPointer(collideShapeResult, Jolt.CollideShapeResult);
+          return Jolt.ValidateResult_AcceptAllContactsForThisBodyPair;
+    };
+    contactListener.OnContactAdded = (body1, body2, manifold, settings) => {
+                console.log('aaa2c3');
+
+          body1 = Jolt.wrapPointer(body1, Jolt.Body);
+          body2 = Jolt.wrapPointer(body2, Jolt.Body);
+          manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
+          settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
+          console.log(body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString());
+          input.contacts.push({
+          	body1: body1,
+          	body2: body2,
+          	manifold: manifold,
+          	settings: settings
+          });
+          // Override the restitution to 0.5
+          settings.mCombinedRestitution = 0.5;
+    };
+		contactListener.OnContactPersisted = (body1, body2, manifold, settings) => {
+					body1 = Jolt.wrapPointer(body1, Jolt.Body);
+					body2 = Jolt.wrapPointer(body2, Jolt.Body);
+					manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
+					settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
+					//collisionLog.value += 'OnContactPersisted ' + body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString() + '\n';
+
+					// Override the restitution to 0.5
+					settings.mCombinedRestitution = 0.5;
+				};
+		contactListener.OnContactRemoved = (subShapePair) => {
+					subShapePair = Jolt.wrapPointer(subShapePair, Jolt.SubShapeIDPair);
+					//collisionLog.value += 'OnContactRemoved ' + subShapePair.GetBody1ID().GetIndex() + ' ' + subShapePair.GetBody2ID().GetIndex() + '\n';
+		};
+    physicsSystem.SetContactListener(contactListener);
+
 			const characterContactListener = new Jolt.CharacterContactListenerJS();
 			characterContactListener.OnAdjustBodyVelocity = (character, body2, linearVelocity, angularVelocity) => {
 				body2 = Jolt.wrapPointer(body2, Jolt.Body);
@@ -671,6 +715,12 @@ function addMarker(location, size, color) {
 						newVelocity = currentVerticalVelocity.clone();
 					}
 				}
+				if(input.knockBackDir.y !== 0){
+					newVelocity.add(characterUp.multiplyScalar(input.knockBackDir.y * input.knockBackMultiplier * 10));
+					input.knockBackDir.setY(0);
+					midAirFromCrouch = false;
+				}
+				//newVelocity.add(input.knockBackDir.y / 10000);
 				// Gravity
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
 				if (playerControlsHorizontalVelocity) {
@@ -716,7 +766,7 @@ function addMarker(location, size, color) {
 						camera.position.set(camera.position.x, threeCharacter.position.y + crouchHeight, camera.position.z);
 						if(crouching && !hasCrouched){
 							if(!midAirFromCrouch){
-								if (input.grounded){midAirFromCrouch = true; input.grounded = false; console.log('bbb');}
+								if (input.grounded){midAirFromCrouch = true; input.grounded = false;}
 						  _tmpVec3.Set(
 						  	threeCharacter.position.x,
 						   	threeCharacter.position.y + 1,
@@ -746,8 +796,12 @@ function addMarker(location, size, color) {
 				// Create a push-able block
 				const boxHalfExtent = 0.75;
 				let shape = new Jolt.BoxShape(new Jolt.Vec3(boxHalfExtent, boxHalfExtent, boxHalfExtent));
-				let creationSettings = new Jolt.BodyCreationSettings(shape, new Jolt.Vec3(-10.0, 5.0, 10.0),
-					new Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, LAYER_MOVING);
+				let creationSettings = new Jolt.BodyCreationSettings(
+					shape, 
+					new Jolt.Vec3(-10.0, 5.0, 10.0),
+					new Jolt.Quat.prototype.sIdentity(), 
+					Jolt.EMotionType_Dynamic, LAYER_MOVING
+				);
 				creationSettings.mFriction = 0.001;
 				creationSettings.mOverrideMassProperties = Jolt.EOverrideMassProperties_CalculateInertia;
 				creationSettings.mMassPropertiesOverride.mMass = 1;
@@ -801,11 +855,20 @@ function addMarker(location, size, color) {
 					}
   				camera.quaternion.setFromEuler(euler);
 				}
+				if(crouching || hasCrouched){
+					input.position = new THREE.Vector3(threeCharacter.position.x,threeCharacter.position.y + 2,threeCharacter.position.z);
+				} else {
+					input.position = new THREE.Vector3(threeCharacter.position.x,threeCharacter.position.y + 1,threeCharacter.position.z);
+				}
+				input.hasCrouched = hasCrouched;
+				input.position = new THREE.Vector3(threeCharacter.position.x,threeCharacter.position.y,threeCharacter.position.z);
 				if(init){for (let i = 0; i < players.length; i++) {
         		  players[i].turn(input);
-        		  turn(THREE, scene, dynamicObjects, camera, jolt, input, players, init, bodyInterface, i, deltaTime);
+        		  turn(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, i, deltaTime);
       			  input.clickedLeft = false;
       			  input.clickedRight = false;
+							input.init = false;
+							input.contacts = [];
       				}
       			}
       			init = true;
@@ -882,7 +945,7 @@ function addMarker(location, size, color) {
 	const defaultConfig = {
 		Sensitivity: 2.19,
 		FPS: true,
-		Controller: true,
+		Controller: false,
 		Deadzone: 0.06,
 		'Controller Sensitivity': 10.00,
 		bind: defaultBind,
@@ -1065,6 +1128,15 @@ function addMarker(location, size, color) {
 					input.crouched = false;
 				}
 			};
+			addEventListener("blur", (event) => {
+				input.forwardPressed = false;
+				input.backwardPressed = false;
+				input.leftPressed = false;
+				input.rightPressed = false;
+				input.crouched = false;
+				input.vector.z = 0;
+				input.vector.x = 0;
+			});
 
 			physicsSystem.SetGravity(new Jolt.Vec3(0, -28, 0));
 		}

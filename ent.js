@@ -11,7 +11,6 @@ export class Ent {
     this.lateralMomentum = new THREE.Vector2(0,0);
     this.maxMomentum = 100;
     this.rotateMomentum = {};
-    this.momentumOsc = { x: true, z: true};
     this.speed = 0;
     this.maxSpeed = 30;
     this.minSpeed = 0.01;
@@ -27,11 +26,8 @@ export class Ent {
     this.lastY = 0.0001;
     this.lookingBack = false;
     this.jumpReleased = true;
-    this.jumpAmp = .00; //05
-    this.surfAmp = 125;
-    this.boost = 0;
-    this.boostMaxSpeed = 30;
-    this.surfMin = .45;
+    this.jumpAmp = .00;
+    this.surfMin = .43;
     this.surfMax = .525;
     this.surfing = false;
     this.angleOfChange = 0;
@@ -48,8 +44,29 @@ export class Ent {
     this.lastLat = new THREE.Vector3(0,0,0);
     this.projectiles = [];
 
-    this.knockBack = function(x) {
-      console.log('aaa');
+    this.knockBack = function(x, y, z, multiplier, input) {
+      console.log(input.position);
+      console.log('k ' + x + ' ' + y + ' ' + z);
+      console.log(input.position.distanceTo(new THREE.Vector3(x,y,z)));
+      if(input.position.distanceTo(new THREE.Vector3(x,y,z)) < 8){
+        if(input.hasCrouched){
+          input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
+          input.cameraPosition.y + 1,input.cameraPosition.z); //.5
+        } else {
+          input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
+          input.cameraPosition.y + 2,input.cameraPosition.z); //1
+        }
+        console.log(
+          new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize()
+        );
+        input.knockBackDistance = input.position.distanceTo(new THREE.Vector3(x,y,z));
+        input.knockBackDir = new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize();
+        input.knockBackMultiplier = multiplier;
+        this.momentum.x += input.knockBackDir.x * multiplier * 10 ;
+        //this.momentum.y += this.knockBackDir.y / 10;
+        this.momentum.z += input.knockBackDir.z * multiplier * 10 ;
+
+      }
     }
     
     this.turn = function(input){
@@ -214,68 +231,6 @@ export class Ent {
         this.momentum.x = 0;
         this.momentum.z = 0;
       }
-    }
-
-    this.collisionDetection = function(input){
-      if(Math.abs(this.move.x) < 0.0001 || Math.abs(this.move.x) > 1){this.move.x = 0;}
-
-      if(Math.abs(this.move.z) < 0.0001 || Math.abs(this.move.z) > 1){this.move.z = 0;}
-
-      if(this.sliding){console.log('slid ' + this.testmove.y); this.slideTimeout = 10;} else {this.slideTimeout--;}
-
-      this.sliding = false;
-
-      if(this.move.x > 1){alert('1');}
-
-      player.computeColliderMovement(collider, this.move, 8, 0x00020001);
-      this.correctedMovement = player.computedMovement();
-
-      if(this.correctedMovement.x == 0 && this.move.x !== 0 && this.sliding == false && this.slideTimeout < 0){
-          player.setOffset(0);
-      }
-
-      if(this.correctedMovement.z == 0 && this.move.z !== 0 && this.sliding == false && this.slideTimeout < 0){
-        player.setOffset(0);
-
-      }
-
-      this.momentum.x -= this.momentum.x * input.collision.x;
-      this.momentum.z -= this.momentum.y * input.collision.y;
-      this.momentum.y -= this.momentum.z * input.collision.z;
-      this.camDirection = new THREE.Vector3();
-      this.camDirection = camera.getWorldDirection(this.camDirection);
-      this.angleOfDirection = new THREE.Vector2(this.camDirection.x, this.camDirection.z)
-        .angleTo(new THREE.Vector2(this.momentum.x, this.momentum.z))/Math.PI;
-
-      if(this.angleOfDirection > .5){this.lookingBack = true;
-      } else {this.lookingBack = false;}
-
-      this.correctedMovement.x += collider.translation().x;
-      this.correctedMovement.y += collider.translation().y;
-      this.correctedMovement.z += collider.translation().z;
-      camera.position.x = this.correctedMovement.x;
-      camera.position.y = this.correctedMovement.y;
-      camera.position.z = this.correctedMovement.z;
-      collider.setTranslation(camera.position);
-      this.lat.x = camera.position.x;
-      this.lat.y = camera.position.z;
-      this.speed = this.lat.distanceTo(this.lastLat) / input.d; 
-
-      if(this.speed == Infinity){
-        this.momentum = { x: 0.0, y: 0.0, z: 0.0 };
-        camera.position.x = this.lastLat.x;
-        camera.position.z = this.lastLat.y;
-        collider.setTranslation(camera.position);
-      } else {
-        this.lastLat.x = camera.position.x;
-        this.lastLat.y = camera.position.z;
-      }
-
-      if (this.speed > this.maxSpeed){this.speed = this.maxSpeed;}
-
-      if (this.speed < this.minSpeed){this.speed = this.minSpeed;}
-
-      if(this.lastY !== 0){ this.lastY = camera.position.y;} else {this.lastY = 0.0001;}
     }
   }
 }
