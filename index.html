@@ -707,9 +707,7 @@ function addMarker(location, size, color) {
 					}
 					if (!jump){jumpReleased = true;}
 				} else {
-					if(input.crouched){console.log(midAirFromCrouch + ' ' + jump + ' ' + movingTowardsGround);}
 					if (midAirFromCrouch && jump && movingTowardsGround && jumpReleased){
-						console.log('jmp');
 						newVelocity = groundVelocity;
 						newVelocity.add(characterUp.multiplyScalar(jumpSpeed - .5));
 						midAirFromCrouch = false;
@@ -722,7 +720,6 @@ function addMarker(location, size, color) {
 					input.knockBackDir.setY(0);
 					midAirFromCrouch = false;
 				}
-				//newVelocity.add(input.knockBackDir.y / 10000);
 				// Gravity
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
 				if (playerControlsHorizontalVelocity) {
@@ -933,10 +930,14 @@ function addMarker(location, size, color) {
 	  Right: 'd',
 	  Jump: ' ',
 	  Crouch: 'shift',
+	  Fire: '0',
+	  'Alt Fire': '2'
 	};
 	const defaultControllerBind = {
 	  Jump: 'button_0',
 	  Crouch: 'button_1',
+	  Fire: 'button_5',
+	  'Alt Fire': 'button_4'
 	};
 	var bind = defaultBind;
 
@@ -963,11 +964,13 @@ function addMarker(location, size, color) {
 			gui.destroy();
 			gui = new GUI();
 			gui.add( config, 'Sensitivity', 0, 10 );
-			gui.add( config, 'FPS' );
-			gui.add( config, 'MSAA' );
 			gui.add( config, 'Controller' );
 			gui.add( config, 'Controller Sensitivity', 0, 100 );
 			gui.add( config, 'Deadzone' );
+
+			const renderingFolder = gui.addFolder( 'Rendering' );
+			renderingFolder.add( config, 'FPS' );
+			renderingFolder.add( config, 'MSAA' );
 
 			const bindFolder = gui.addFolder( 'Bindings' );
 			Object.keys(config.bind).forEach(key => {
@@ -1055,6 +1058,7 @@ function addMarker(location, size, color) {
 
 		joypad.on('button_press', (e) => {
 	  	const { buttonName } = e.detail;
+	  	console.log(document.getSelection().focusNode);
 	  	switch (e.detail.buttonName){
 	  		case config.controllerBind.Jump:
 	  			jump = true;
@@ -1062,6 +1066,12 @@ function addMarker(location, size, color) {
 	  		case config.controllerBind.Crouch:
 	  			input.crouched = true;
 	  			break;
+	  		case config.controllerBind['Fire']:
+					input.clickedLeft = true;	  			
+					break;
+				case config.controllerBind['Alt Fire']:
+					input.clickedRight = true;	  			
+					break;
 	  	}
 
 	  	if(!(document.getSelection().focusNode === null)){
@@ -1088,10 +1098,10 @@ function addMarker(location, size, color) {
 
 	addEventListener("mousedown", (event) => {
     if(pointer.isLocked){
-      if(event.button == 0){
+      if(event.button == config.bind['Fire']){
         input.clickedLeft = true;
       }
-      if(event.button == 2){
+      if(event.button == config.bind['Alt Fire']){
         input.clickedRight = true;
       }
 	} else if('[object HTMLCanvasElement]' == event.target.toString()) {container.requestFullscreen() ;}
@@ -1142,7 +1152,7 @@ function addMarker(location, size, color) {
 				input.vector.x = 0;
 			});
 
-			physicsSystem.SetGravity(new Jolt.Vec3(0, -28, 0));
+			physicsSystem.SetGravity(new Jolt.Vec3(0, -26, 0));
 		}
 		});
 
