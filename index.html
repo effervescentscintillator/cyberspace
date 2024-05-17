@@ -71,6 +71,12 @@ var crouching = false;
 var unCrouching = false;
 var midAirFromCrouch = false;
 var hasCrouched = false;
+var config = {MSAA: true};
+
+if (localStorage.getItem('config') === null) {
+} else {
+  config = JSON.parse(localStorage.getItem('config'));
+}
 
 			var input = {
 				forwardPressed: false,
@@ -105,7 +111,7 @@ function onWindowResize() {
 
 function initGraphics() {
 
-	renderer = new THREE.WebGLRenderer();
+	renderer = new THREE.WebGLRenderer({antialias: config.MSAA});
 	renderer.setClearColor(0xbfd1e5);
 	renderer.setPixelRatio(window.devicePixelRatio);
 	renderer.setSize(window.innerWidth, window.innerHeight);
@@ -554,20 +560,17 @@ function addMarker(location, size, color) {
 
 			    const contactListener = new Jolt.ContactListenerJS();
     contactListener.OnContactValidate = (body1, body2, baseOffset, collideShapeResult) => {
-          console.log('aaab3');
           body1 = Jolt.wrapPointer(body1, Jolt.Body);
           body2 = Jolt.wrapPointer(body2, Jolt.Body);
           collideShapeResult = Jolt.wrapPointer(collideShapeResult, Jolt.CollideShapeResult);
           return Jolt.ValidateResult_AcceptAllContactsForThisBodyPair;
     };
     contactListener.OnContactAdded = (body1, body2, manifold, settings) => {
-                console.log('aaa2c3');
 
           body1 = Jolt.wrapPointer(body1, Jolt.Body);
           body2 = Jolt.wrapPointer(body2, Jolt.Body);
           manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
           settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
-          console.log(body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString());
           input.contacts.push({
           	body1: body1,
           	body2: body2,
@@ -582,7 +585,6 @@ function addMarker(location, size, color) {
 					body2 = Jolt.wrapPointer(body2, Jolt.Body);
 					manifold = Jolt.wrapPointer(manifold, Jolt.ContactManifold);
 					settings = Jolt.wrapPointer(settings, Jolt.ContactSettings);
-					//collisionLog.value += 'OnContactPersisted ' + body1.GetID().GetIndex() + ' ' + body2.GetID().GetIndex() + ' ' + manifold.mWorldSpaceNormal.ToString() + '\n';
 
 					// Override the restitution to 0.5
 					settings.mCombinedRestitution = 0.5;
@@ -945,6 +947,7 @@ function addMarker(location, size, color) {
 	const defaultConfig = {
 		Sensitivity: 2.19,
 		FPS: true,
+		MSAA: true,
 		Controller: false,
 		Deadzone: 0.06,
 		'Controller Sensitivity': 10.00,
@@ -961,6 +964,7 @@ function addMarker(location, size, color) {
 			gui = new GUI();
 			gui.add( config, 'Sensitivity', 0, 10 );
 			gui.add( config, 'FPS' );
+			gui.add( config, 'MSAA' );
 			gui.add( config, 'Controller' );
 			gui.add( config, 'Controller Sensitivity', 0, 100 );
 			gui.add( config, 'Deadzone' );
@@ -1018,7 +1022,7 @@ function addMarker(location, size, color) {
 			  //event.controller // controller that was modified
 			} );
 	};
-    var config = JSON.parse(JSON.stringify(defaultConfig));
+    config = JSON.parse(JSON.stringify(defaultConfig));
 
     if (localStorage.getItem('config') === null || localStorage.getItem('configVersion') !== configVersion.toString()) {
       localStorage.removeItem('config');
