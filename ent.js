@@ -45,27 +45,19 @@ export class Ent {
     this.projectiles = [];
 
     this.knockBack = function(x, y, z, multiplier, input) {
-      console.log(input.position);
-      console.log('k ' + x + ' ' + y + ' ' + z);
-      console.log(input.position.distanceTo(new THREE.Vector3(x,y,z)));
       if(input.position.distanceTo(new THREE.Vector3(x,y,z)) < 8){
         if(input.hasCrouched){
           input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
-          input.cameraPosition.y + 1,input.cameraPosition.z); //.5
+          input.cameraPosition.y + 1,input.cameraPosition.z);
         } else {
           input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
-          input.cameraPosition.y + 2,input.cameraPosition.z); //1
+          input.cameraPosition.y + 2,input.cameraPosition.z);
         }
-        console.log(
-          new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize()
-        );
         input.knockBackDistance = input.position.distanceTo(new THREE.Vector3(x,y,z));
         input.knockBackDir = new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize();
         input.knockBackMultiplier = multiplier;
         this.momentum.x += input.knockBackDir.x * multiplier * 10 ;
-        //this.momentum.y += this.knockBackDir.y / 10;
         this.momentum.z += input.knockBackDir.z * multiplier * 10 ;
-
       }
     }
     
