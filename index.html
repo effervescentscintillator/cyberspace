@@ -13,6 +13,7 @@
 	<script type="module">
 		import { Ent } from '/ent.js';
 		import { turn } from '/game.js';
+		import { ui } from '/ui.js';
 		import * as THREE from 'three';
 		import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 		import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
@@ -421,8 +422,12 @@ function addMarker(location, size, color) {
         	  
         	    scene.add( gltf.scene );
 
-        	let vertex = gltf.scene.children[0].geometry.attributes.position;
-				  let index = gltf.scene.children[0].geometry.index;
+        	for (var m = 0; m < gltf.scene.children.length; m++) {
+
+        	
+
+        	let vertex = gltf.scene.children[m].geometry.attributes.position;
+				  let index = gltf.scene.children[m].geometry.index;
 				  let j, i, ref;
 
 				  let triangles = new Jolt.TriangleList();
@@ -443,7 +448,7 @@ function addMarker(location, size, color) {
 					let body = bodyInterface.CreateBody(creationSettings);
 					Jolt.destroy(creationSettings);
 					bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
-
+					}
         	    gltf.animations; // Array<THREE.AnimationClip>
         	    gltf.scene; // THREE.Group
         	    gltf.scenes; // Array<THREE.Group>
@@ -837,11 +842,11 @@ function addMarker(location, size, color) {
 				if(config.Controller){
 					if(Math.abs(analogMoveVertical) > config.Deadzone){
 						input.vector.z = analogMoveVertical;
-					} else {input.vector.z = 0;}
+					} else if(!Number.isInteger(input.vector.z)) {input.vector.z = 0;}
 
 					if(Math.abs(analogMoveHorizontal) > config.Deadzone){
 					  input.vector.x = analogMoveHorizontal;						
-					} else {input.vector.x = 0;}
+					} else if(!Number.isInteger(input.vector.x)) {input.vector.x = 0;}
 
 					euler.setFromQuaternion(camera.quaternion);
 
@@ -864,6 +869,7 @@ function addMarker(location, size, color) {
 				if(init){for (let i = 0; i < players.length; i++) {
         		  players[i].turn(input);
         		  turn(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, i, deltaTime);
+							ui(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, config, i, deltaTime);
       			  input.clickedLeft = false;
       			  input.clickedRight = false;
 							input.init = false;
@@ -914,8 +920,8 @@ function addMarker(location, size, color) {
 	pointer.maxPolarAngle = Math.PI - 0.000000000000001;
 	pointer.minPolarAngle = 0.000000000000001;
 
-	//localStorage.removeItem('config');
-	//localStorage.removeItem('configVersion');
+	localStorage.removeItem('config');
+	localStorage.removeItem('configVersion');
 
 	var configVersion = 0;
 
@@ -930,10 +936,14 @@ function addMarker(location, size, color) {
 	  Right: 'd',
 	  Jump: ' ',
 	  Crouch: 'shift',
-	  Fire: '0',
-	  'Alt Fire': '2'
+	  'Mouse Fire': '0',
+	  'Alt Mouse Fire': '2'
 	};
 	const defaultControllerBind = {
+	  Forward: 'button_12',
+	  Left: 'button_14',
+	  Back: 'button_13',
+	  Right: 'button_15',
 	  Jump: 'button_0',
 	  Crouch: 'button_1',
 	  Fire: 'button_5',
@@ -966,7 +976,7 @@ function addMarker(location, size, color) {
 			gui.add( config, 'Sensitivity', 0, 10 );
 			gui.add( config, 'Controller' );
 			gui.add( config, 'Controller Sensitivity', 0, 100 );
-			gui.add( config, 'Deadzone' );
+			gui.add( config, 'Deadzone', 0, .3 );
 
 			const renderingFolder = gui.addFolder( 'Rendering' );
 			renderingFolder.add( config, 'FPS' );
@@ -1058,7 +1068,7 @@ function addMarker(location, size, color) {
 
 		joypad.on('button_press', (e) => {
 	  	const { buttonName } = e.detail;
-	  	console.log(document.getSelection().focusNode);
+	  	console.log(e.detail.buttonName);
 	  	switch (e.detail.buttonName){
 	  		case config.controllerBind.Jump:
 	  			jump = true;
@@ -1071,6 +1081,18 @@ function addMarker(location, size, color) {
 					break;
 				case config.controllerBind['Alt Fire']:
 					input.clickedRight = true;	  			
+					break;
+				case config.controllerBind['Forward']:
+					keyDown(config.bind.Forward);			
+					break;
+				case config.controllerBind['Left']:
+					keyDown(config.bind.Left);			
+					break;
+				case config.controllerBind['Back']:
+					keyDown(config.bind.Back);			
+					break;
+				case config.controllerBind['Right']:
+					keyDown(config.bind.Right);			
 					break;
 	  	}
 
@@ -1092,22 +1114,37 @@ function addMarker(location, size, color) {
 	  		case config.controllerBind.Crouch:
 	  			input.crouched = false;
 	  			break;
+				case config.controllerBind['Forward']:
+					keyUp(config.bind.Forward);			
+					break;
+				case config.controllerBind['Left']:
+					keyUp(config.bind.Left);			
+					break;
+				case config.controllerBind['Back']:
+					keyUp(config.bind.Back);			
+					break;
+				case config.controllerBind['Right']:
+					keyUp(config.bind.Right);			
+					break;
 	  	}
 		});
   }
 
 	addEventListener("mousedown", (event) => {
     if(pointer.isLocked){
-      if(event.button == config.bind['Fire']){
+      if(event.button == config.bind['Mouse Fire']){
         input.clickedLeft = true;
       }
-      if(event.button == config.bind['Alt Fire']){
+      if(event.button == config.bind['Alt Mouse Fire']){
         input.clickedRight = true;
       }
-	} else if('[object HTMLCanvasElement]' == event.target.toString()) {container.requestFullscreen() ;}
+	} else if('[object HTMLCanvasElement]' == event.target.toString() && event.button == 0) {container.requestFullscreen() ;}
 	});
 			function onDocumentKeyDown(event) {
 				var key = event.key.toLowerCase();
+				keyDown(key);
+			};
+			function keyDown(key) {
 				if (key == config.bind.Forward) {
 					input.forwardPressed = true; input.vector.z = -1;
 				} else if (key == config.bind.Back) {
@@ -1121,9 +1158,12 @@ function addMarker(location, size, color) {
 				} else if (key == config.bind.Crouch) {
 					input.crouched = true;
 				}
-			};
+			}
 			function onDocumentKeyUp(event) {
 				var key = event.key.toLowerCase();
+				keyUp(key);
+			};
+			function keyUp(key) {
 				if (key == config.bind.Forward) {
 					input.forwardPressed = false;
 					if (!input.backwardPressed){input.vector.z = 0;} else {input.vector.z = 1;}
@@ -1141,7 +1181,7 @@ function addMarker(location, size, color) {
 				} else if (key == config.bind.Crouch) {
 					input.crouched = false;
 				}
-			};
+			}
 			addEventListener("blur", (event) => {
 				input.forwardPressed = false;
 				input.backwardPressed = false;

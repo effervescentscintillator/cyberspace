@@ -16,7 +16,7 @@ export class Ent {
     this.minSpeed = 0.01;
     this.grav = .0;
     this.agility = 0;
-    this.groundAgil = .6;
+    this.groundAgil = 1;
     this.airAgil = .05;
     this.groundFric = .9;
     this.friction = this.groundFric;
@@ -27,7 +27,7 @@ export class Ent {
     this.lookingBack = false;
     this.jumpReleased = true;
     this.jumpAmp = .00;
-    this.surfMin = .43;
+    this.surfMin = .42;
     this.surfMax = .525;
     this.surfing = false;
     this.angleOfChange = 0;
@@ -48,28 +48,20 @@ export class Ent {
       if(input.position.distanceTo(new THREE.Vector3(x,y,z)) < 8){
         if(input.hasCrouched){
           input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
-          input.cameraPosition.y + 1,input.cameraPosition.z);
+          input.cameraPosition.y + .5,input.cameraPosition.z);
         } else {
           input.playerPostion = new THREE.Vector3(input.cameraPosition.x,
-          input.cameraPosition.y + 2,input.cameraPosition.z);
+          input.cameraPosition.y + 1,input.cameraPosition.z);
         }
         input.knockBackDistance = input.position.distanceTo(new THREE.Vector3(x,y,z));
         input.knockBackDir = new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize();
         input.knockBackMultiplier = multiplier;
-        this.momentum.x += input.knockBackDir.x * multiplier * 10 ;
-        this.momentum.z += input.knockBackDir.z * multiplier * 10 ;
+        this.momentum.x += input.knockBackDir.x * multiplier * 15 ;
+        this.momentum.z += input.knockBackDir.z * multiplier * 15 ;
       }
     }
     
     this.turn = function(input){
-      this.movement(input);
-    }
-
-    this.movement = function(input){
-      //if(!this.input.z == 0 && !this.input.z == 1){
-      //}
-      //console.log('mag ' +1 / Math.abs(input.vector.z));
-      //console.log(this.speed);
       this.inputMagZ = 1 / Math.abs(input.vector.z);
       this.inputMagX = 1 / Math.abs(input.vector.x);
       this.vect = normalize(input.vector);
@@ -213,10 +205,10 @@ export class Ent {
 
       input.colltest = input.collision.length;
 
-      if(!input.grounded){input.colltest /= 10}
+      if(!input.grounded){input.colltest /= 15}
 
-      this.momentum.x -= (this.momentum.x * (input.colltest));
-      this.momentum.z -= (this.momentum.z * (input.colltest));
+      this.momentum.x -= (this.momentum.x * (input.colltest * 2));
+      this.momentum.z -= (this.momentum.z * (input.colltest * 2));
 
       if(input.reset){
         input.reset = false;
