@@ -9,6 +9,9 @@
 </head>
 
 <body>
+	<div style="position:fixed; left:0px; background-color: black; display: none; width: 245px; height: 100%;" id="roster"></div>
+	<div style="position:fixed; left:245px; right: 245px; display: none; background-color: coral; height: 100%;" id="chat"></div>
+	<div style="position:fixed; right:0px; display: none; background-color: lightcoral; width: 245px; height: 100%;" id="config"></div>
 	<div id="container"><div style="position:fixed; bottom:1px; background-color: lime; width: 0%; height: 1px;" id="loadingBar"></div></div>
 	<script type="module">
 		import { Ent } from '/ent.js';
@@ -22,7 +25,26 @@
 		import initJolt from 'https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js';
 		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 		import GUI from 'lil-gui';
-		import 'joypad.js'; 
+		import 'joypad.js';
+		import geckos from '@geckos.io/client'
+
+// or add a minified version to your index.html file
+// https://github.com/geckosio/geckos.io/tree/master/bundles
+
+const channel = geckos({ port: 3000 }) // default port is 9208
+
+channel.onConnect(error => {
+  if (error) {
+    console.error(error.message)
+    return
+  }
+
+  channel.on('chat message', data => {
+    console.log(data);
+  })
+
+  channel.emit('name', config.Alias)
+})
 
 // Graphics variables
 var container, stats;
@@ -90,9 +112,11 @@ if (localStorage.getItem('config') === null) {
 				MouseMoveX: 0,
 				vector: {x:0,z:0},
 				collision: {x:0,y:0,z:0},
+				contactPosition: {x:0,y:0,z:0},
 				init: true,
 				contacts: [],
-				knockBackDir: new THREE.Vector3(0,0,0)
+				knockBackDir: new THREE.Vector3(0,0,0),
+				changeInVelocity: 0
 			};
 
 function getRandomQuat() {
@@ -494,7 +518,7 @@ function addMarker(location, size, color) {
 			const characterPadding = 0.02;
 			const penetrationRecoverySpeed = 1.0;
 			const predictiveContactDistance = 0.1;
-			const enableWalkStairs = true;
+			let enableWalkStairs = true;
 			let enableStickToFloor = true;
 
 			let init = false;
@@ -511,7 +535,7 @@ function addMarker(location, size, color) {
 			const geometry = new THREE.BoxGeometry(1, 1, 1);
 			const material = new THREE.MeshPhongMaterial({ color: 0xffff00, opacity: 0 });
 			let threeCharacter = new THREE.Mesh(geometry, material);
-			threeCharacter.material.transparent = true ;
+			//threeCharacter.material.transparent = true ;
 			let desiredVelocity = new THREE.Vector3();
 
 			const updateSettings = new Jolt.ExtendedUpdateSettings();
@@ -612,6 +636,7 @@ function addMarker(location, size, color) {
 			characterContactListener.OnContactValidate = (character, bodyID2, subShapeID2) => {
 				bodyID2 = Jolt.wrapPointer(bodyID2, Jolt.BodyID);
 				character = Jolt.wrapPointer(character, Jolt.CharacterVirtual);
+				//console.log(bodyInterface.GetPosition(bodyID2).GetY());
 				if (bodyID2.GetIndexAndSequenceNumber() == lavaObjectId)
 					isInLava = true; // Can't modify velocity or position at this point, marking that we want to teleport
 				return true;
@@ -619,10 +644,22 @@ function addMarker(location, size, color) {
 			characterContactListener.OnContactAdded = (character, bodyID2, subShapeID2, contactPosition, contactNormal, settings) => {
 			}
 			characterContactListener.OnContactSolve = (character, bodyID2, subShapeID2, contactPosition, contactNormal, contactVelocity, contactMaterial, characterVelocity, newCharacterVelocity) => {
-				// Don't allow the player to slide down static not-too-steep surfaces when not actively moving and when not on a moving platform
+				contactPosition = Jolt.wrapPointer(contactPosition, Jolt.Vec3);
 				character = Jolt.wrapPointer(character, Jolt.CharacterVirtual);
+				input.contactPosition.x = contactPosition.GetX();
+				input.contactPosition.y = contactPosition.GetY();
+				input.contactPosition.z = contactPosition.GetZ();
+				//input.changeInCharacterVelocity = 
+												// Don't allow the player to slide down static not-too-steep surfaces when not actively moving and when not on a moving platform
+
 				contactVelocity = Jolt.wrapPointer(contactVelocity, Jolt.Vec3);
 				newCharacterVelocity = Jolt.wrapPointer(newCharacterVelocity, Jolt.Vec3);
+				characterVelocity = Jolt.wrapPointer(characterVelocity, Jolt.Vec3);
+				input.changeInVelocity = (newCharacterVelocity.Length() - characterVelocity.Length())/characterVelocity.Length();
+				if(isNaN(input.changeInVelocity)){input.changeInVelocity = 0;}
+				//if(newCharacterVelocity.Length()>characterVelocity.Length()){
+					//input.changeInVelocity = Math.abs(input.changeInVelocity);
+				//}
 				contactNormal = Jolt.wrapPointer(contactNormal, Jolt.Vec3);
 				if (!allowSliding && contactVelocity.IsNearZero() && !character.IsSlopeTooSteep(contactNormal)) {
 					newCharacterVelocity.SetX(0);
@@ -704,7 +741,7 @@ function addMarker(location, size, color) {
 				{
 					// Assume velocity of ground when on ground
 					newVelocity = groundVelocity;
-					if(input.grounded){midAirFromCrouch = false;}
+
 					// Jump
 					if (jump && movingTowardsGround && jumpReleased){
 						newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
@@ -729,6 +766,7 @@ function addMarker(location, size, color) {
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
 				if (playerControlsHorizontalVelocity) {
 					// Player input
+					console.log(players[0].translation.x);
 					newVelocity.add(new THREE.Vector3(players[0].translation.x *100, players[0].translation.y *100, players[0].translation.z *100));
 				} else {
 					// Preserve horizontal velocity
@@ -831,7 +869,7 @@ function addMarker(location, size, color) {
 			threeCharacter.geometry = threeStandingGeometry;
 			threeCharacter.userData.body = character;
 
-			//scene.add(threeCharacter);
+			scene.add(threeCharacter);
 
 			const cameraRotation = new THREE.Quaternion();
 
@@ -839,6 +877,7 @@ function addMarker(location, size, color) {
     		players[0] = new Ent(THREE);
 
 			onExampleUpdate = (time, deltaTime) => {
+
 				if(config.Controller){
 					if(Math.abs(analogMoveVertical) > config.Deadzone){
 						input.vector.z = analogMoveVertical;
@@ -867,6 +906,14 @@ function addMarker(location, size, color) {
 				input.hasCrouched = hasCrouched;
 				input.position = new THREE.Vector3(threeCharacter.position.x,threeCharacter.position.y,threeCharacter.position.z);
 				if(init){for (let i = 0; i < players.length; i++) {
+					//console.log(input.collision.length);
+							//players[i].knockBack(
+							//	input.contactPosition.x,
+							//	input.contactPosition.y,
+							//	input.contactPosition.z,
+							//	1 * input.changeInVelocity,
+							//	input
+							//);
         		  players[i].turn(input);
         		  turn(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, i, deltaTime);
 							ui(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, input, players, init, bodyInterface, config, i, deltaTime);
@@ -874,10 +921,13 @@ function addMarker(location, size, color) {
       			  input.clickedRight = false;
 							input.init = false;
 							input.contacts = [];
+							input.changeInVelocity = 0;
       				}
       			}
       			init = true;
+      			console.log(input.grounded + ' ' + enableWalkStairs);
       	input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
+      	//if()
       	if(!(!input.crouched && !input.grounded)){
       		setCrouched(input.crouched);
       	}
@@ -896,13 +946,15 @@ function addMarker(location, size, color) {
 				input.cameraPosition = wrapVec3(character.GetPosition())
 				handleInput(cameraDirectionV, input.switchStance, input.collision.y, deltaTime);
 
-				input.olderPosition = input.oldPosition;
+				input.velocity = character.GetGroundVelocity();
+
 
 				input.oldPosition = wrapVec3(character.GetPosition());
 				prePhysicsUpdate(deltaTime)
 
 				input.newdPosition = wrapVec3(character.GetPosition());
 				camera.position.add(input.newdPosition.sub(input.oldPosition));
+				//console.log(input.velocity.Length());
 				input.collision.x = (players[0].translation.x - input.newdPosition.x);
 				input.collision.y = (players[0].translation.y - input.newdPosition.y);
 				input.collision.z = (players[0].translation.z - input.newdPosition.z);
@@ -956,6 +1008,7 @@ function addMarker(location, size, color) {
 	var guiBind = defaultBind;
 
 	const defaultConfig = {
+		Alias: 'noob',
 		Sensitivity: 2.19,
 		FPS: true,
 		MSAA: true,
@@ -973,6 +1026,7 @@ function addMarker(location, size, color) {
 	const initGui = function(){
 			gui.destroy();
 			gui = new GUI();
+			gui.add( config, 'Alias');
 			gui.add( config, 'Sensitivity', 0, 10 );
 			gui.add( config, 'Controller' );
 			gui.add( config, 'Controller Sensitivity', 0, 100 );
@@ -1192,7 +1246,7 @@ function addMarker(location, size, color) {
 				input.vector.x = 0;
 			});
 
-			physicsSystem.SetGravity(new Jolt.Vec3(0, -26, 0));
+			physicsSystem.SetGravity(new Jolt.Vec3(0, -32, 0));
 		}
 		});
 

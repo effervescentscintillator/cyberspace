@@ -13,16 +13,14 @@ export class Ent {
     this.rotateMomentum = {};
     this.speed = 0;
     this.maxSpeed = 30;
-    this.minSpeed = 0.01;
+    this.minSpeed = .1;
     this.grav = .0;
     this.agility = 0;
     this.groundAgil = 1;
-    this.airAgil = .05;
-    this.groundFric = .9;
+    this.airAgil = .1;
+    this.groundFric = 250;
     this.friction = this.groundFric;
     this.airFric = 0;
-    this.lat = new THREE.Vector2(0,0);
-    this.lastLat = new THREE.Vector2(0,0);
     this.lastY = 0.0001;
     this.lookingBack = false;
     this.jumpReleased = true;
@@ -56,8 +54,9 @@ export class Ent {
         input.knockBackDistance = input.position.distanceTo(new THREE.Vector3(x,y,z));
         input.knockBackDir = new THREE.Vector3().subVectors(input.playerPostion,new THREE.Vector3(x,y,z)).normalize();
         input.knockBackMultiplier = multiplier;
-        this.momentum.x += input.knockBackDir.x * multiplier * 15 ;
-        this.momentum.z += input.knockBackDir.z * multiplier * 15 ;
+        this.momentum.x += input.knockBackDir.x * multiplier * 10 ;
+        this.momentum.z += input.knockBackDir.z * multiplier * 10 ;
+        this.knockedBack = true;
       }
     }
     
@@ -131,6 +130,13 @@ export class Ent {
     }
 
     this.grounded = function(input){
+      if(this.midAir){
+        //landing
+        //this.momentum.x /= 1.5;
+        //this.momentum.z /= 1.5;
+        this.knockedBack = false;
+      }
+
       this.midAir = false;
 
       if(this.jumpReleased && input.jump){
@@ -187,8 +193,8 @@ export class Ent {
       this.vect = normalize(this.vect);
 
       if(!this.sliding){ 
-      this.vect.x = this.vect.x * (this.friction);
-      this.vect.z = this.vect.z * (this.friction);
+      this.vect.x -= this.vect.x - (this.vect.x * this.friction * input.d);
+      this.vect.z -= this.vect.z - (this.vect.z * this.friction * input.d);
       }
 
       this.lateralMomentum.x = this.momentum.x;
@@ -203,12 +209,28 @@ export class Ent {
         this.translation = { x: 0.0, y: 0.0, z: 0.0 };
       }
 
-      input.colltest = input.collision.length;
+      /*input.colltest = input.collision.length;
+      input.colltest -= 0.026;
+      if(input.colltest <= 0.05 || this.midAir){input.colltest = 0}
 
-      if(!input.grounded){input.colltest /= 15}
+      //if(!input.grounded){input.colltest /= 15}
+      //if(!input.grounded){input.colltest /= 8}
+      if(!input.grounded){input.collision.length = 0}
 
-      this.momentum.x -= (this.momentum.x * (input.colltest * 2));
-      this.momentum.z -= (this.momentum.z * (input.colltest * 2));
+      this.momentum.x -= (this.momentum.x * (input.collision.length * 10));
+      this.momentum.z -= (this.momentum.z * (input.collision.length * 10));*/
+
+      if(Math.abs(input.changeInVelocity) < 1 && Math.abs(input.changeInVelocity) > .5){}else{
+        input.changeInVelocity = 0;
+      }
+
+      this.momentum.x += this.momentum.x * input.changeInVelocity;
+      this.momentum.z += this.momentum.z * input.changeInVelocity;
+
+      //console.log(this.momentum.length);
+      if(this.momentum.length() < this.minSpeed){
+        this.momentum.x = 0; this.momentum.z = 0;
+      }
 
       if(input.reset){
         input.reset = false;

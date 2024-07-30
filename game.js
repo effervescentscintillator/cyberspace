@@ -69,7 +69,7 @@ export function turn(THREE, scene, dynamicObjects, camera, jolt, physicsSystem, 
           players[i].projectiles[0].threeObject.position.x,
           players[i].projectiles[0].threeObject.position.y,
           players[i].projectiles[0].threeObject.position.z,
-          2,
+          1.5,
           input
         );
 
