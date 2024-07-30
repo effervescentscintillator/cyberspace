@@ -220,14 +220,16 @@ export class Ent {
       this.momentum.x -= (this.momentum.x * (input.collision.length * 10));
       this.momentum.z -= (this.momentum.z * (input.collision.length * 10));*/
 
-      input.changeInVelocity = THREE.MathUtils.clamp(input.changeInVelocity,-1,0);
+      if(!input.knockedBack){
+        input.changeInVelocity = THREE.MathUtils.clamp(input.changeInVelocity,-1,0);
 
-      if(Math.abs(input.changeInVelocity) < 1 && Math.abs(input.changeInVelocity) > .5){}else{
+        if(Math.abs(input.changeInVelocity) < 1 && Math.abs(input.changeInVelocity) > .5){}else{
         input.changeInVelocity = 0;
       }
 
       this.momentum.x += this.momentum.x * input.changeInVelocity;
       this.momentum.z += this.momentum.z * input.changeInVelocity;
+      }
 
       //console.log(this.momentum.length);
       if(this.momentum.length() < this.minSpeed){

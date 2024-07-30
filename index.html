@@ -757,11 +757,16 @@ function addMarker(location, size, color) {
 						newVelocity = currentVerticalVelocity.clone();
 					}
 				}
-				if(input.knockBackDir.y !== 0){
+				if(input.knockBackDir.length() !== 0){
 					newVelocity.add(characterUp.multiplyScalar(input.knockBackDir.y * input.knockBackMultiplier * 10));
+					input.knockedBack = true;
 					input.knockBackDir.setY(0);
+										input.knockBackDir.setX(0);
+																				input.knockBackDir.setZ(0);
+
 					midAirFromCrouch = false;
-				}
+
+				} else {input.knockedBack = false;}
 				// Gravity
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
 				if (playerControlsHorizontalVelocity) {
@@ -774,7 +779,7 @@ function addMarker(location, size, color) {
 					newVelocity.add(currentHorizontalVelocity);
 				}
 					let stationary = new THREE.Vector3(players[0].translation.x,players[0].translation.y,players[0].translation.z).length() === 0;
-					if(!stationary || !input.grounded || jump){
+					if(!stationary || !input.grounded || jump || input.knockedBack){
 						_tmpVec3.Set(newVelocity.x, newVelocity.y, newVelocity.z);
 					}
 				character.SetLinearVelocity(_tmpVec3);
