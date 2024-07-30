@@ -741,7 +741,7 @@ function addMarker(location, size, color) {
 				{
 					// Assume velocity of ground when on ground
 					newVelocity = groundVelocity;
-
+					if(input.grounded){midAirFromCrouch = false;}
 					// Jump
 					if (jump && movingTowardsGround && jumpReleased){
 						newVelocity.add(characterUp.multiplyScalar(jumpSpeed));
@@ -766,7 +766,7 @@ function addMarker(location, size, color) {
 				newVelocity.add(gravity.multiplyScalar(deltaTime).applyQuaternion(upRotation));
 				if (playerControlsHorizontalVelocity) {
 					// Player input
-					console.log(players[0].translation.x);
+					//console.log(players[0].translation.x);
 					newVelocity.add(new THREE.Vector3(players[0].translation.x *100, players[0].translation.y *100, players[0].translation.z *100));
 				} else {
 					// Preserve horizontal velocity
@@ -925,7 +925,7 @@ function addMarker(location, size, color) {
       				}
       			}
       			init = true;
-      			console.log(input.grounded + ' ' + enableWalkStairs);
+      			//console.log(input.grounded + ' ' + enableWalkStairs);
       	input.grounded = character.GetGroundState() == Jolt.EGroundState_OnGround;
       	//if()
       	if(!(!input.crouched && !input.grounded)){

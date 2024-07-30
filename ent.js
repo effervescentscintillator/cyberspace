@@ -16,9 +16,9 @@ export class Ent {
     this.minSpeed = .1;
     this.grav = .0;
     this.agility = 0;
-    this.groundAgil = 1;
+    this.groundAgil = .7;
     this.airAgil = .1;
-    this.groundFric = 250;
+    this.groundFric = 225;
     this.friction = this.groundFric;
     this.airFric = 0;
     this.lastY = 0.0001;
@@ -219,6 +219,8 @@ export class Ent {
 
       this.momentum.x -= (this.momentum.x * (input.collision.length * 10));
       this.momentum.z -= (this.momentum.z * (input.collision.length * 10));*/
+
+      input.changeInVelocity = THREE.MathUtils.clamp(input.changeInVelocity,-1,0);
 
       if(Math.abs(input.changeInVelocity) < 1 && Math.abs(input.changeInVelocity) > .5){}else{
         input.changeInVelocity = 0;
