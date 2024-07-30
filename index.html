@@ -767,13 +767,16 @@ function addMarker(location, size, color) {
 				if (playerControlsHorizontalVelocity) {
 					// Player input
 					//console.log(players[0].translation.x);
-					newVelocity.add(new THREE.Vector3(players[0].translation.x *100, players[0].translation.y *100, players[0].translation.z *100));
+						newVelocity.add(new THREE.Vector3(players[0].translation.x *100, players[0].translation.y *100, players[0].translation.z *100));
 				} else {
 					// Preserve horizontal velocity
 					const currentHorizontalVelocity = linearVelocity.sub(currentVerticalVelocity);
 					newVelocity.add(currentHorizontalVelocity);
 				}
-				_tmpVec3.Set(newVelocity.x, newVelocity.y, newVelocity.z);
+					let stationary = new THREE.Vector3(players[0].translation.x,players[0].translation.y,players[0].translation.z).length() === 0;
+					if(!stationary || !input.grounded || jump){
+						_tmpVec3.Set(newVelocity.x, newVelocity.y, newVelocity.z);
+					}
 				character.SetLinearVelocity(_tmpVec3);
 			}
 			var uncrouchBlock = false;
