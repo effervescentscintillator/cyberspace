@@ -16,17 +16,18 @@ export class Ent {
     this.minSpeed = .1;
     this.grav = .0;
     this.agility = 0;
-    this.groundAgil = .7;
-    this.airAgil = .1;
-    this.groundFric = 225;
+    this.groundAgil = .3;//1
+    this.airAgil = .06; //.1 .03
+    this.groundFric = 75;//350
     this.friction = this.groundFric;
     this.airFric = 0;
+    this.slopeTolerance = .25;
     this.lastY = 0.0001;
     this.lookingBack = false;
     this.jumpReleased = true;
     this.jumpAmp = .00;
-    this.surfMin = .42;
-    this.surfMax = .525;
+    this.surfMin = .38;//42
+    this.surfMax = .53;
     this.surfing = false;
     this.angleOfChange = 0;
     this.isGrounded = true;
@@ -134,7 +135,7 @@ export class Ent {
         //landing
         //this.momentum.x /= 1.5;
         //this.momentum.z /= 1.5;
-        this.knockedBack = false;
+        //this.knockedBack = false;
       }
 
       this.midAir = false;
@@ -223,15 +224,13 @@ export class Ent {
       if(!input.knockedBack){
         input.changeInVelocity = THREE.MathUtils.clamp(input.changeInVelocity,-1,0);
 
-        if(Math.abs(input.changeInVelocity) < 1 && Math.abs(input.changeInVelocity) > .5){}else{
-        input.changeInVelocity = 0;
-      }
-
+        if(Math.abs(input.changeInVelocity) < this.slopeTolerance){
+          input.changeInVelocity = 0;
+        }
       this.momentum.x += this.momentum.x * input.changeInVelocity;
       this.momentum.z += this.momentum.z * input.changeInVelocity;
       }
 
-      //console.log(this.momentum.length);
       if(this.momentum.length() < this.minSpeed){
         this.momentum.x = 0; this.momentum.z = 0;
       }
