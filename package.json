@@ -4,23 +4,29 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev:frontend": "pm2 start vite --name viteDev",
-    "dev:backend": "NODE_ENV=development pm2 start server.js --name cyberspace",
+    "dev:frontend": "pm2 start --no-daemon vite --name viteDev",
+    "dev:backend": "NODE_ENV=development pm2 start --no-daemon server.js --watch --name cyberspace",
     "dev": "concurrently 'pm2 delete viteDev' 'npm:dev:frontend' 'pm2 delete cyberspace' 'npm:dev:backend'",
     "build:frontend": "vite build",
     "build:backend": "NODE_ENV=production pm2 start server.js --name cyberspace",
     "build": "concurrently 'pm2 delete viteDev' 'npm:build:frontend' 'pm2 delete cyberspace' 'npm:build:backend'",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "kill": "concurrently 'pm2 delete viteDev' 'pm2 delete cyberspace'"
   },
   "devDependencies": {
     "vite": "*"
   },
   "dependencies": {
+    "@geckos.io/client": "^3.0.0",
+    "@geckos.io/server": "^3.0.0",
+    "concurrently": "^9.1.0",
     "express": "*",
-    "joypad.js": "^2.3.5",
     "jolt-physics": "^0.13.0",
+    "joypad.js": "^2.3.5",
     "lil-gui": "^0.19.2",
-    "three": "^0.151.2",
+    "node-three-gltf": "^1.8.2",
+    "pm2": "^5.4.3",
+    "three": "*",
     "vite": "*",
     "vite-express": "^0.16.0"
   }
